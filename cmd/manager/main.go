@@ -4,15 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/Dynatrace/dynatrace-oneagent-operator/version"
 	"os"
 	"runtime"
 
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/apis"
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/controller"
+	"github.com/Dynatrace/dynatrace-oneagent-operator/version"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	"k8s.io/client-go/discovery"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -51,6 +52,13 @@ func main() {
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)
+	}
+
+	client, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if v, err := client.ServerVersion(); err != nil {
+		log.Error(err, "Failed to get server version")
+	} else {
+		log.Info(fmt.Sprintf("Version of server: %s", v.String()))
 	}
 
 	// Become the leader before proceeding
