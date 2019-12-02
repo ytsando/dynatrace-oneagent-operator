@@ -9,6 +9,11 @@ defaults: &defaults
     - image: circleci/golang:1.13
   working_directory: /go/src/github.com/Dynatrace/dynatrace-oneagent-operator
 
+defaults_gcr: &defaults_gcr
+  docker:
+    - image: google/cloud-sdk
+  working_directory: /go/src/github.com/Dynatrace/dynatrace-oneagent-operator
+
 
 jobs:
   build:
@@ -110,6 +115,33 @@ jobs:
       - run: docker build . -f ./build/Dockerfile-rhel -t $OAO_IMAGE_RHCC:$CIRCLE_TAG
       - run: docker push $OAO_IMAGE_RHCC:$CIRCLE_TAG
 
+  deploy-release-gcr-dev:
+    <<: *defaults_gcr
+    steps:
+      - setup_remote_docker
+      - run: |
+          echo $GCLOUD_SERVICE_KEY_DEV | gcloud auth activate-service-account --key-file=-
+          gcloud --quiet config set project dynatrace-marketplace-dev
+          gcloud auth configure-docker
+      - attach_workspace:
+          at: .
+      - run: docker build . -f ./build/Dockerfile -t $OAO_IMAGE_GCR_DEV:snapshot
+      - run: docker push $OAO_IMAGE_GCR_DEV:snapshot
+
+  deploy-release-gcr-prod:
+    <<: *defaults_gcr
+    steps:
+      - setup_remote_docker
+      - run: |
+          echo $GCLOUD_SERVICE_KEY_PROD | gcloud auth activate-service-account --key-file=-
+          gcloud --quiet config set project dynatrace-marketplace-prod
+          gcloud auth configure-docker
+      - attach_workspace:
+          at: .
+      - run: docker build . -f ./build/Dockerfile -t $OAO_IMAGE_GCR_PROD:$CIRCLE_TAG
+      - run: docker push $OAO_IMAGE_GCR_PROD:$CIRCLE_TAG
+
+
   deploy-release-snapshot:
     <<: *defaults
     steps:
@@ -158,6 +190,20 @@ workflows:
             branches:
               ignore: /.*/
       - deploy-release-rhcc:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deploy-release-gcr-dev:
+          requires:
+            - build
+          filters:
+            branches:
+              only: /^feature/GKEmarketplace$/
+      - deploy-release-prod:
           requires:
             - build
           filters:
