@@ -203,7 +203,7 @@ workflows:
           filters:
             branches:
               only: /^feature/GKEmarketplace$/
-      - deploy-release-prod:
+      - deploy-release-gcr-prod:
           requires:
             - build
           filters:
