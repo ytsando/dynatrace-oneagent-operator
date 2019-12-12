@@ -2,8 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-platform: ""
-
 operator:
   image:
     
@@ -15,3 +13,10 @@ secret:
   name: "oneagent"
   apiToken:
   paasToken:
+
+deployerHelm:
+  image:
+
+operatorServiceAccount: null
+oneagentServiceAccount: null
+crdServiceAccount: null

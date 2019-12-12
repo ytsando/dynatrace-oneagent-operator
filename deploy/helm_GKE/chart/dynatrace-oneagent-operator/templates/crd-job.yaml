@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+  name: {{ .Release.Name }}-job
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ .Release.Name }}"
+    app.kubernetes.io/component: crd-job
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      containers:
+      - command:
+        - "/bin/bash"
+        - "-ec"
+        - |
+          kubectl apply -f /crds/psp-operator.yaml
+          kubectl apply -f /crds/psp-oneagent.yaml
+          kubectl apply -f /crds/crd.yaml
+          sleep 5
+          kubectl apply -f /crds/oneagent.yaml
+        image: {{ .Values.deployerHelm.image }}
+        imagePullPolicy: Always
+        name: crd-create
+        volumeMounts:
+        - name: crd-configmap
+          mountPath: /crds/
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      serviceAccountName: {{ .Values.crdServiceAccount }}
+      volumes:
+      - name: crd-configmap
+        configMap:
+          name: {{ .Release.Name }}-configmap

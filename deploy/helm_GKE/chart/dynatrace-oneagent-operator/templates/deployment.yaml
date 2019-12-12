@@ -1,4 +1,3 @@
-{{- $platformIsSet := printf "%s" (required "Platform needs to be set to kubernetes or openshift" (include "dynatrace-oneagent-operator.platformSet" .))}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -48,4 +47,4 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
         beta.kubernetes.io/arch: amd64
-      serviceAccountName: {{ .Release.Name }}
+      serviceAccountName: {{ .Values.operatorServiceAccount }}

@@ -41,26 +41,12 @@ helm.sh/chart: {{ include "dynatrace-oneagent-operator.chart" . }}
 {{- end -}}
 
 {{/*
-Check if platform is set
-*/}}
-{{- define "dynatrace-oneagent-operator.platformSet" -}}
-{{- if or (eq .Values.platform "kubernetes") (eq .Values.platform "openshift") -}}
-    {{ default "set" }}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Check if default image is used    
 */}}
 {{- define "dynatrace-oneagent-operator.image" -}}
 {{- if .Values.operator.image -}}
-    {{- printf "%s" .Values.operator.image -}}    
+	{{- printf "%s" .Values.operator.image -}}    
 {{- else -}}
-    {{- if eq .Values.platform "kubernetes" -}}
-        {{- printf "%s:v%s" "quay.io/dynatrace/dynatrace-oneagent-operator" .Chart.AppVersion }}
-    {{- end -}}
-    {{- if eq .Values.platform "openshift" -}}
-        {{- printf "%s:v%s" "registry.connect.redhat.com/dynatrace/dynatrace-oneagent-operator" .Chart.AppVersion }}
-    {{- end -}}
+	{{- printf "%s:v%s" "quay.io/dynatrace/dynatrace-oneagent-operator" .Chart.AppVersion }}
 {{- end -}}
 {{- end -}}
