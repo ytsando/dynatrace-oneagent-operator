@@ -1,10 +1,12 @@
 apiVersion: app.k8s.io/v1beta1
 kind: Application
 metadata:
-  name: {{ .Release.Name }}-application
+  name: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "dynatrace-oneagent-operator.commonlabels" . | nindent 4 }}
+  annotations:
+    kubernetes-engine.cloud.google.com/icon: data:image/png;base64,{{ .Files.Get "logo.png" | b64enc }}
 spec:
   descriptor:
     type: "Dynatrace OneAgent Operator"
@@ -23,9 +25,6 @@ spec:
       The Dynatrace OneAgent Operator allows users to easily deploy full-stack monitoring for [Kubernetes clusters](https://www.dynatrace.com/technologies/kubernetes-monitoring/). The Dynatrace OneAgent automatically monitors workloads in containers down to the code and request level.
       
       For deployment instructions please consult the [Operator Deploy Guide](https://www.dynatrace.com/support/help/shortlink/kubernetes-deploy).
-    icons:
-      - src: "https://assets.dynatrace.com/global/resources/Signet_Logo_RGB_CP_512x512px.png"
-        type: "image/png"
     links:
       - description: Dynatrace Website
         url: https://www.dynatrace.com/
@@ -34,9 +33,6 @@ spec:
       - description: Kubernetes Monitoring Info
         url: https://www.dynatrace.com/technologies/kubernetes-monitoring
 
-    icons:
-      - src: "https://assets.dynatrace.com/global/resources/Signet_Logo_RGB_CP_512x512px.png"
-        type: "image/png"
     links:
       - description: Dynatrace Website
         url: https://www.dynatrace.com/
@@ -44,3 +40,19 @@ spec:
         url: https://www.dynatrace.com/support/help/shortlink/kubernetes-deploy
       - description: Kubernetes Monitoring Info
         url: https://www.dynatrace.com/technologies/kubernetes-monitoring
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ .Release.Name }}"
+  componentKinds:
+    - group: apps/v1
+      kind: DaemonSet
+    - group: v1
+      kind: Pod
+    - group: v1
+      kind: ConfigMap
+    - group: apps/v1
+      kind: Deployment
+    - group: v1
+      kind: Secret
+    - group: batch/v1
+      kind: Job

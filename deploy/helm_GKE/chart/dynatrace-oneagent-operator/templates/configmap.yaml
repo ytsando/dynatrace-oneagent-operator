@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-configmap
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dynatrace-oneagent-operator.commonlabels" . | nindent 4 }}
 data:
   psp-operator.yaml: |
     apiVersion: policy/v1beta1
@@ -14,6 +16,14 @@ data:
         apparmor.security.beta.kubernetes.io/allowedProfileNames: "runtime/default"
         seccomp.security.alpha.kubernetes.io/defaultProfileName: "docker/default"
         apparmor.security.beta.kubernetes.io/defaultProfileName: "runtime/default"
+      labels:
+        {{- include "dynatrace-oneagent-operator.commonlabels" . | nindent 8 }}
+      ownerReferences:
+      - apiVersion: v1beta1
+        blockOwnerDeletion: true
+        kind: Application
+        name: {{ .Release.Name }}
+        uid: ##UID##
     spec:
       privileged: false
       allowPrivilegeEscalation: false
@@ -45,6 +55,14 @@ data:
       name: dynatrace-oneagent
       annotations:
         seccomp.security.alpha.kubernetes.io/allowedProfileNames: "*"
+      labels:
+        {{- include "dynatrace-oneagent-operator.commonlabels" . | nindent 8 }}
+      ownerReferences:
+      - apiVersion: v1beta1
+        blockOwnerDeletion: true
+        kind: Application
+        name: {{ .Release.Name }}
+        uid: ##UID##
     spec:
       privileged: true
       allowPrivilegeEscalation: true
@@ -71,6 +89,14 @@ data:
     kind: CustomResourceDefinition
     metadata:
       name: oneagents.dynatrace.com
+      labels:
+        {{- include "dynatrace-oneagent-operator.commonlabels" . | nindent 8 }}
+      ownerReferences:
+      - apiVersion: v1beta1
+        blockOwnerDeletion: true
+        kind: Application
+        name: {{ .Release.Name }}
+        uid: ##UID##
     spec:
       group: dynatrace.com
       names:
@@ -88,6 +114,14 @@ data:
     metadata:
       name: {{ .Values.oneagent.name }}
       namespace: {{ .Release.Namespace }}
+      labels:
+        {{- include "dynatrace-oneagent-operator.commonlabels" . | nindent 8 }}
+      ownerReferences:
+      - apiVersion: v1beta1
+        blockOwnerDeletion: true
+        kind: Application
+        name: {{ .Release.Name }}
+        uid: ##UID##
     spec:
       apiUrl: {{ required "ApiUrl needs to be set!" .Values.oneagent.apiUrl}}
       tokens: {{ .Values.secret.name }}

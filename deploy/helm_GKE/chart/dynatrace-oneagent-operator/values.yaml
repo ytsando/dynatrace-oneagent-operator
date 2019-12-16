@@ -19,4 +19,4 @@ deployerHelm:
 
 operatorServiceAccount: null
 oneagentServiceAccount: null
-crdServiceAccount: null
+configurationServiceAccount: null

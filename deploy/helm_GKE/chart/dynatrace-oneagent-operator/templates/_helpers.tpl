@@ -35,6 +35,7 @@ Create chart name and version as used by the chart label.
 Common labels
 */}}
 {{- define "dynatrace-oneagent-operator.commonlabels" -}}
+app.kubernetes.io/name: "{{ .Release.Name }}"
 dynatrace: operator
 operator: oneagent
 helm.sh/chart: {{ include "dynatrace-oneagent-operator.chart" . }}
@@ -47,6 +48,6 @@ Check if default image is used
 {{- if .Values.operator.image -}}
 	{{- printf "%s" .Values.operator.image -}}    
 {{- else -}}
-	{{- printf "%s:v%s" "quay.io/dynatrace/dynatrace-oneagent-operator" .Chart.AppVersion }}
+	{{- printf "%s:%s" "gcr.io/dynatrace-marketplace-dev/dynatrace-oneagent-operator" "snapshot" }}
 {{- end -}}
 {{- end -}}
