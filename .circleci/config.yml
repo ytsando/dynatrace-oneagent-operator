@@ -120,8 +120,8 @@ jobs:
           gcloud auth configure-docker
       - attach_workspace:
           at: .
-      - run: docker build . -f ./build/Dockerfile -t $OAO_IMAGE_GCR_DEV:0.5.4
-      - run: docker push $OAO_IMAGE_GCR_DEV:0.5.4
+      - run: docker build . -f ./build/Dockerfile -t $OAO_IMAGE_GCR_DEV:v0.5.4
+      - run: docker push $OAO_IMAGE_GCR_DEV:v0.5.4
 
   deploy-release-gcr-prod:
     <<: *defaults_gcr
@@ -133,8 +133,8 @@ jobs:
           gcloud auth configure-docker
       - attach_workspace:
           at: .
-      - run: docker build . -f ./build/Dockerfile -t $OAO_IMAGE_GCR_PROD:0.5.4
-      - run: docker push $OAO_IMAGE_GCR_PROD:0.5.4
+      - run: docker build . -f ./build/Dockerfile -t $OAO_IMAGE_GCR_PROD:v0.5.4
+      - run: docker push $OAO_IMAGE_GCR_PROD:v0.5.4
 
   deploy-release-rhcc:
     <<: *defaults
@@ -201,13 +201,13 @@ workflows:
             - build
           filters:
             branches:
-              only: /feature/includeLicenes/
+              only: /feature\/includeLicenes/
       - deploy-release-gcr-prod:
           requires:
             - build
         filters:
             branches:
-              only: /feature/includeLicenes/
+              only: /feature\/includeLicenes/
       - deploy-release-rhcc:
           requires:
             - build
