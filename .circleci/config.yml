@@ -205,7 +205,7 @@ workflows:
       - deploy-release-gcr-prod:
           requires:
             - build
-        filters:
+          filters:
             branches:
               only: /feature\/includeLicenes/
       - deploy-release-rhcc:
