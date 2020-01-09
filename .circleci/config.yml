@@ -72,11 +72,17 @@ jobs:
       - run:
           name: Build binary
           command: go build -o ./build/_output/bin/dynatrace-oneagent-operator ./cmd/manager
+      - run:
+          name: Prepare licenses
+          command: |
+            go get github.com/google/go-licenses
+            go-licenses save ./... --save_path=third_party_licenses
       - persist_to_workspace:
           root: .
           paths:
             - LICENSE
             - build
+            - third_party_licenses
 
   deploy-snapshot:
     <<: *defaults
