@@ -3,8 +3,7 @@ kind: ClusterRoleBinding
 metadata:
   name: dynatrace-oneagent-operator
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 subjects:
   - kind: ServiceAccount
     name: dynatrace-oneagent-operator

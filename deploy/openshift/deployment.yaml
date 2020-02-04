@@ -4,22 +4,20 @@ metadata:
   name: dynatrace-oneagent-operator
   namespace: dynatrace
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 spec:
   replicas: 1
   revisionHistoryLimit: 1
   selector:
     matchLabels:
-      name: dynatrace-oneagent-operator
+      dynatrace.com/app: dynatrace-oneagent-operator
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        name: dynatrace-oneagent-operator
-        dynatrace: operator
-        operator: oneagent
+        dynatrace.com/app: dynatrace-oneagent-operator
+        dynatrace.com/operator: oneagent
     spec:
       containers:
         - name: dynatrace-oneagent-operator

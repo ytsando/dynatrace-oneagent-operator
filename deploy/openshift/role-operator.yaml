@@ -4,8 +4,7 @@ metadata:
   name: dynatrace-oneagent-operator
   namespace: dynatrace
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 rules:
   - apiGroups:
       - dynatrace.com
