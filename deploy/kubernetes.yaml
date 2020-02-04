@@ -78,8 +78,7 @@ metadata:
   name: dynatrace-oneagent-operator
   namespace: dynatrace
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 rules:
   - apiGroups:
       - dynatrace.com
@@ -185,8 +184,7 @@ metadata:
   name: dynatrace-oneagent-operator
   namespace: dynatrace
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 subjects:
   - kind: ServiceAccount
     name: dynatrace-oneagent-operator
@@ -542,22 +540,20 @@ metadata:
   name: dynatrace-oneagent-operator
   namespace: dynatrace
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 spec:
   replicas: 1
   revisionHistoryLimit: 1
   selector:
     matchLabels:
-      name: dynatrace-oneagent-operator
+      dynatrace.com/app: dynatrace-oneagent-operator
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        name: dynatrace-oneagent-operator
-        dynatrace: operator
-        operator: oneagent
+        dynatrace.com/app: dynatrace-oneagent-operator
+        dynatrace.com/operator: oneagent
     spec:
       containers:
         - name: dynatrace-oneagent-operator
@@ -611,8 +607,7 @@ kind: ClusterRole
 metadata:
   name: dynatrace-oneagent-operator
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 rules:
   - apiGroups:
       - "" # "" indicates the core API group
@@ -628,8 +623,7 @@ kind: ClusterRoleBinding
 metadata:
   name: dynatrace-oneagent-operator
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 subjects:
   - kind: ServiceAccount
     name: dynatrace-oneagent-operator

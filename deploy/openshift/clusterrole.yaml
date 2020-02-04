@@ -3,8 +3,7 @@ kind: ClusterRole
 metadata:
   name: dynatrace-oneagent-operator
   labels:
-    dynatrace: operator
-    operator: oneagent
+    dynatrace.com/operator: oneagent
 rules:
   - apiGroups:
       - "" # "" indicates the core API group
