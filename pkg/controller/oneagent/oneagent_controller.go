@@ -328,7 +328,7 @@ func (r *ReconcileOneAgent) reconcileVersion(logger logr.Logger, instance *dynat
 	podList := &corev1.PodList{}
 	listOps := []client.ListOption{
 		client.InNamespace(instance.Namespace),
-		client.MatchingLabels(buildLabels(instance.Name)),
+		client.MatchingLabels(utils.BuildOneAgentLabels(instance.Name)),
 	}
 	err = r.client.List(context.TODO(), podList, listOps...)
 	if err != nil {
@@ -374,8 +374,8 @@ func (r *ReconcileOneAgent) updateCR(instance *dynatracev1alpha1.OneAgent) error
 
 func newDaemonSetForCR(instance *dynatracev1alpha1.OneAgent) *appsv1.DaemonSet {
 	podSpec := newPodSpecForCR(instance)
-	selectorLabels := buildLabels(instance.Name)
-	mergedLabels := mergeLabels(instance.Spec.Labels, selectorLabels)
+	selectorLabels := utils.BuildOneAgentLabels(instance.Name)
+	mergedLabels := utils.MergeLabels(instance.Spec.Labels, selectorLabels)
 
 	return &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -515,7 +515,7 @@ func (r *ReconcileOneAgent) waitPodReadyState(instance *dynatracev1alpha1.OneAge
 
 	listOps := []client.ListOption{
 		client.InNamespace(instance.Namespace),
-		client.MatchingLabels(buildLabels(instance.Name)),
+		client.MatchingLabels(utils.BuildOneAgentLabels(instance.Name)),
 	}
 
 	for splay := uint16(0); splay < *instance.Spec.WaitReadySeconds; splay += splayTimeSeconds {

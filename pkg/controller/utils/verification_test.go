@@ -113,3 +113,9 @@ func TestBuildDynatraceClient(t *testing.T) {
 		assert.Error(t, err)
 	}
 }
+
+func TestBuildLabels(t *testing.T) {
+	l := BuildOneAgentLabels("my-name")
+	assert.Equal(t, l["dynatrace.com/operator"], "oneagent")
+	assert.Equal(t, l["oneagent.dynatrace.com/instance"], "my-name")
+}

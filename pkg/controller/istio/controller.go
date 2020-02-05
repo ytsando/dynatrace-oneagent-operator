@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 
 	dynatracev1alpha1 "github.com/Dynatrace/dynatrace-oneagent-operator/pkg/apis/dynatrace/v1alpha1"
+	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/controller/utils"
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/dtclient"
 	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istioclientset "istio.io/client-go/pkg/clientset/versioned"
@@ -127,7 +128,7 @@ func (c *Controller) reconcileIstioConfigurations(instance *dynatracev1alpha1.On
 func (c *Controller) reconcileIstioRemoveConfigurations(instance *dynatracev1alpha1.OneAgent,
 	comHosts []dtclient.CommunicationHost, role string) (bool, error) {
 
-	labels := labels.SelectorFromSet(buildIstioLabels(instance.Name, role)).String()
+	labels := labels.SelectorFromSet(utils.BuildIstioLabels(instance.Name, role)).String()
 	listOps := &metav1.ListOptions{
 		LabelSelector: labels,
 	}
@@ -300,7 +301,7 @@ func (c *Controller) handleIstioConfigurationForServiceEntry(instance *dynatrace
 func (c *Controller) createIstioConfigurationForServiceEntry(oneagent *dynatracev1alpha1.OneAgent,
 	serviceEntry *istiov1alpha3.ServiceEntry, role string) error {
 
-	serviceEntry.Labels = buildIstioLabels(oneagent.Name, role)
+	serviceEntry.Labels = utils.BuildIstioLabels(oneagent.Name, role)
 	sve, err := c.istioClient.NetworkingV1alpha3().ServiceEntries(oneagent.Namespace).Create(serviceEntry)
 	if err != nil {
 		return err
@@ -315,7 +316,7 @@ func (c *Controller) createIstioConfigurationForServiceEntry(oneagent *dynatrace
 func (c *Controller) createIstioConfigurationForVirtualService(oneagent *dynatracev1alpha1.OneAgent,
 	virtualService *istiov1alpha3.VirtualService, role string) error {
 
-	virtualService.Labels = buildIstioLabels(oneagent.Name, role)
+	virtualService.Labels = utils.BuildIstioLabels(oneagent.Name, role)
 	vs, err := c.istioClient.NetworkingV1alpha3().VirtualServices(oneagent.Namespace).Create(virtualService)
 	if err != nil {
 		return err

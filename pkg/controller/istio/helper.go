@@ -190,11 +190,3 @@ func mapErrorToObjectProbeResult(err error) (probeResult, error) {
 
 	return probeObjectFound, nil
 }
-
-func buildIstioLabels(name, role string) map[string]string {
-	return map[string]string{
-		"dynatrace":            "oneagent",
-		"oneagent":             name,
-		"dynatrace-istio-role": role,
-	}
-}

@@ -14,12 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestBuildLabels(t *testing.T) {
-	l := buildLabels("my-name")
-	assert.Equal(t, l["dynatrace"], "oneagent")
-	assert.Equal(t, l["oneagent"], "my-name")
-}
-
 func TestGetPodReadyState(t *testing.T) {
 	pod := &corev1.Pod{
 		Status: corev1.PodStatus{
