@@ -6,37 +6,12 @@ import (
 	"strings"
 
 	dynatracev1alpha1 "github.com/Dynatrace/dynatrace-oneagent-operator/pkg/apis/dynatrace/v1alpha1"
+	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/controller/utils"
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/dtclient"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
-
-func mergeLabels(labels ...map[string]string) map[string]string {
-	res := map[string]string{}
-	for _, m := range labels {
-		if m != nil {
-			for k, v := range m {
-				res[k] = v
-			}
-		}
-	}
-
-	return res
-}
-
-// buildLabels returns generic labels based on the name given for a Dynatrace OneAgent
-func buildLabels(name string) map[string]string {
-	return map[string]string{
-		"dynatrace": "oneagent",
-		"oneagent":  name,
-	}
-}
-
-// isPredefinedLabel returns true if the label is predefined by the Operator.
-func isPredefinedLabel(label string) bool {
-	return label == "dynatrace" || label == "oneagent"
-}
 
 // getPodReadyState determines the overall ready state of a Pod.
 // Returns true if all containers in the Pod are ready.
@@ -112,7 +87,7 @@ func copyDaemonSetSpecToOneAgentSpec(dsSpec *appsv1.DaemonSetSpec, crSpec *dynat
 		in := dsSpec.Template.Labels
 		out := make(map[string]string, len(in))
 		for key, val := range in {
-			if !isPredefinedLabel(key) {
+			if !utils.IsPredefinedLabel(key) {
 				out[key] = val
 			}
 		}
