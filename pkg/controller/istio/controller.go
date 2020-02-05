@@ -15,9 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -36,14 +38,16 @@ type Controller struct {
 	istioClient istioclientset.Interface
 
 	logger logr.Logger
+	scheme *runtime.Scheme
 	config *rest.Config
 }
 
 // NewController - creates new instance of istio controller
-func NewController(config *rest.Config) *Controller {
+func NewController(config *rest.Config, scheme *runtime.Scheme) *Controller {
 	c := &Controller{
 		config: config,
 		logger: log.Log.WithName("istio.controller"),
+		scheme: scheme,
 	}
 	istioClient, err := c.initialiseIstioClient(config)
 	if err != nil {
@@ -259,8 +263,11 @@ func (c *Controller) handleIstioConfigurationForVirtualService(instance *dynatra
 		return false, err
 	}
 
-	virtualService := buildVirtualService(name, communicationHost.Host, communicationHost.Protocol,
-		communicationHost.Port)
+	virtualService := buildVirtualService(name, communicationHost.Host, communicationHost.Protocol, communicationHost.Port)
+	if err := controllerutil.SetControllerReference(instance, virtualService, c.scheme); err != nil {
+		return false, err
+	}
+
 	if virtualService == nil {
 		return false, nil
 	}
@@ -288,6 +295,10 @@ func (c *Controller) handleIstioConfigurationForServiceEntry(instance *dynatrace
 	}
 
 	serviceEntry := buildServiceEntry(name, communicationHost.Host, communicationHost.Protocol, communicationHost.Port)
+	if err := controllerutil.SetControllerReference(instance, serviceEntry, c.scheme); err != nil {
+		return false, err
+	}
+
 	err = c.createIstioConfigurationForServiceEntry(instance, serviceEntry, role)
 	if err != nil {
 		c.logger.Error(err, "istio: failed to create ServiceEntry")

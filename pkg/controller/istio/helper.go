@@ -120,8 +120,8 @@ func buildServiceEntryIP(name, host string, port uint32) *istiov1alpha3.ServiceE
 
 // BuildNameForEndpoint returns a name to be used as a base to identify Istio objects.
 func buildNameForEndpoint(name string, protocol string, host string, port uint32) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%s-%s-%s-%d", name, protocol, host, port)))
-	return hex.EncodeToString(sum[:])
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s-%s-%d", protocol, host, port)))
+	return fmt.Sprintf("%s-%s", name, hex.EncodeToString(sum[:])[0:10])
 }
 
 func buildVirtualServiceSpec(host, protocol string, port uint32) istio.VirtualService {
