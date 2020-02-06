@@ -87,6 +87,13 @@ func BuildIstioLabels(name, role string) map[string]string {
 	return m
 }
 
+// BuildArchLabels returns labels based on the arch.
+func BuildArchLabels(name, arch string) map[string]string {
+	m := BuildOneAgentLabels(name)
+	m["oneagent.dynatrace.com/arch"] = arch
+	return m
+}
+
 // IsPredefinedLabel returns true if the label is predefined by the Operator.
 func IsPredefinedLabel(label string) bool {
 	return strings.HasPrefix(label, "dynatrace.com/") || strings.HasPrefix(label, "oneagent.dynatrace.com/")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,6 +67,17 @@ func NewOneAgentReconciler(client client.Client, apiReader client.Reader, scheme
 
 // add adds a new OneAgentController to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	// Register indexer for nodeName field selector on pods.
+	if err := mgr.GetFieldIndexer().IndexField(&corev1.Pod{}, "spec.nodeName", func(o runtime.Object) []string {
+		pod := o.(*corev1.Pod)
+		if pod.Spec.NodeName == "" {
+			return nil
+		}
+		return []string{pod.Spec.NodeName}
+	}); err != nil {
+		return err
+	}
+
 	// Create a new controller
 	c, err := controller.New("oneagent-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -200,7 +212,7 @@ func (r *ReconcileOneAgent) Reconcile(request reconcile.Request) (reconcile.Resu
 	if instance.SetPhaseOnError(err) || updateCR {
 		logger.Info("updating custom resource", "cause", "version change")
 		errClient := r.updateCR(instance)
-		if err != nil || errClient != nil {
+		if errClient != nil {
 			return reconcile.Result{}, errClient
 		}
 		if err != nil {
@@ -228,42 +240,46 @@ func (r *ReconcileOneAgent) Reconcile(request reconcile.Request) (reconcile.Resu
 func (r *ReconcileOneAgent) reconcileRollout(logger logr.Logger, instance *dynatracev1alpha1.OneAgent, dtc dtclient.Client) (bool, error) {
 	updateCR := false
 
-	// element needs to be inserted before it is used in ONEAGENT_INSTALLER_SCRIPT_URL
-	if instance.Spec.Env[0].Name != "ONEAGENT_INSTALLER_TOKEN" {
-		instance.Spec.Env = append(instance.Spec.Env[:0], append([]corev1.EnvVar{{
-			Name: "ONEAGENT_INSTALLER_TOKEN",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: instance.Spec.Tokens},
-					Key:                  utils.DynatracePaasToken}},
-		}}, instance.Spec.Env[0:]...)...)
-		updateCR = true
-	}
-
-	// Define a new DaemonSet object
-	dsDesired := newDaemonSetForCR(instance)
-
-	// Set OneAgent instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, dsDesired, r.scheme); err != nil {
+	var nodes corev1.NodeList
+	if err := r.client.List(context.TODO(), &nodes, client.MatchingLabels(instance.Spec.NodeSelector)); err != nil {
 		return false, err
 	}
 
-	// Check if this DaemonSet already exists
-	dsActual := &appsv1.DaemonSet{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: dsDesired.Name, Namespace: dsDesired.Namespace}, dsActual)
-	if err != nil && k8serrors.IsNotFound(err) {
-		logger.Info("creating new daemonset")
-		err = r.client.Create(context.TODO(), dsDesired)
-		if err != nil {
+	archs := map[string]bool{}
+	for i := range nodes.Items {
+		if v := nodes.Items[i].Labels["beta.kubernetes.io/arch"]; v != "" {
+			archs[v] = true
+		}
+		if v := nodes.Items[i].Labels["kubernetes.io/arch"]; v != "" {
+			archs[v] = true
+		}
+	}
+
+	for arch := range archs {
+		// Define a new DaemonSet object
+		dsDesired := newDaemonSetForCR(instance, arch)
+
+		// Set OneAgent instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, dsDesired, r.scheme); err != nil {
 			return false, err
 		}
-	} else if err != nil {
-		return false, err
-	} else {
-		if hasSpecChanged(&dsActual.Spec, &instance.Spec) {
-			logger.Info("updating existing daemonset")
-			err = r.client.Update(context.TODO(), dsDesired)
+
+		var dsFound appsv1.DaemonSetList
+		err := r.client.List(context.TODO(), &dsFound, client.InNamespace(dsDesired.Namespace), client.MatchingLabels(utils.BuildArchLabels(instance.Name, arch)))
+		if k8serrors.IsNotFound(err) || (err == nil && len(dsFound.Items) == 0) {
+			logger.Info("creating new daemonset")
+			err = r.client.Create(context.TODO(), dsDesired)
 			if err != nil {
+				return false, err
+			}
+			continue
+		} else if err != nil {
+			return false, err
+		}
+
+		if hasSpecChanged(&dsFound.Items[0].Spec, &dsDesired.Spec) {
+			logger.Info("updating existing daemonset")
+			if err := r.client.Update(context.TODO(), dsDesired); err != nil {
 				return false, err
 			}
 		}
@@ -313,6 +329,18 @@ func (r *ReconcileOneAgent) determineOneAgentPhase(instance *dynatracev1alpha1.O
 func (r *ReconcileOneAgent) reconcileVersion(logger logr.Logger, instance *dynatracev1alpha1.OneAgent, dtc dtclient.Client) (bool, error) {
 	updateCR := false
 
+	// query oneagent pods
+	podList := &corev1.PodList{}
+	listOps := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+		client.MatchingLabels(utils.BuildOneAgentLabels(instance.Name)),
+	}
+
+	if err := r.client.List(context.TODO(), podList, listOps...); err != nil {
+		logger.Error(err, "failed to list pods", "listops", listOps)
+		return updateCR, err
+	}
+
 	// get desired version
 	desired, err := dtc.GetLatestAgentVersion(dtclient.OsUnix, dtclient.InstallerTypeDefault)
 	if err != nil {
@@ -322,18 +350,6 @@ func (r *ReconcileOneAgent) reconcileVersion(logger logr.Logger, instance *dynat
 		logger.Info("new version available", "actual", instance.Status.Version, "desired", desired)
 		instance.Status.Version = desired
 		updateCR = true
-	}
-
-	// query oneagent pods
-	podList := &corev1.PodList{}
-	listOps := []client.ListOption{
-		client.InNamespace(instance.Namespace),
-		client.MatchingLabels(utils.BuildOneAgentLabels(instance.Name)),
-	}
-	err = r.client.List(context.TODO(), podList, listOps...)
-	if err != nil {
-		logger.Error(err, "failed to list pods", "listops", listOps)
-		return updateCR, err
 	}
 
 	// determine pods to restart
@@ -348,8 +364,7 @@ func (r *ReconcileOneAgent) reconcileVersion(logger logr.Logger, instance *dynat
 	}
 
 	// restart daemonset
-	err = r.deletePods(logger, instance, podsToDelete)
-	if err != nil {
+	if err := r.deletePods(logger, instance, podsToDelete); err != nil {
 		logger.Error(err, "failed to update version")
 		return updateCR, err
 	}
@@ -372,16 +387,16 @@ func (r *ReconcileOneAgent) updateCR(instance *dynatracev1alpha1.OneAgent) error
 	return r.client.Update(context.TODO(), instance)
 }
 
-func newDaemonSetForCR(instance *dynatracev1alpha1.OneAgent) *appsv1.DaemonSet {
-	podSpec := newPodSpecForCR(instance)
-	selectorLabels := utils.BuildOneAgentLabels(instance.Name)
+func newDaemonSetForCR(instance *dynatracev1alpha1.OneAgent, arch string) *appsv1.DaemonSet {
+	podSpec := newPodSpecForCR(instance, arch)
+	selectorLabels := utils.BuildArchLabels(instance.Name, arch)
 	mergedLabels := utils.MergeLabels(instance.Spec.Labels, selectorLabels)
 
 	return &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instance.Name,
-			Namespace: instance.Namespace,
-			Labels:    mergedLabels,
+			GenerateName: instance.Name + "-",
+			Namespace:    instance.Namespace,
+			Labels:       mergedLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{MatchLabels: selectorLabels},
@@ -393,7 +408,7 @@ func newDaemonSetForCR(instance *dynatracev1alpha1.OneAgent) *appsv1.DaemonSet {
 	}
 }
 
-func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent) corev1.PodSpec {
+func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent, arch string) corev1.PodSpec {
 	trueVar := true
 
 	// K8s 1.18+ is expected to drop the "beta.kubernetes.io" labels in favor of "kubernetes.io" which was added on K8s 1.14.
@@ -402,7 +417,7 @@ func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent) corev1.PodSpec {
 	return corev1.PodSpec{
 		Containers: []corev1.Container{{
 			Args:            instance.Spec.Args,
-			Env:             instance.Spec.Env,
+			Env:             prepareEnvVars(instance, arch),
 			Image:           instance.Spec.Image,
 			ImagePullPolicy: corev1.PullAlways,
 			Name:            "dynatrace-oneagent",
@@ -444,7 +459,7 @@ func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent) corev1.PodSpec {
 								corev1.NodeSelectorRequirement{
 									Key:      "beta.kubernetes.io/arch",
 									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{"amd64"},
+									Values:   []string{arch},
 								},
 								corev1.NodeSelectorRequirement{
 									Key:      "beta.kubernetes.io/os",
@@ -458,7 +473,7 @@ func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent) corev1.PodSpec {
 								corev1.NodeSelectorRequirement{
 									Key:      "kubernetes.io/arch",
 									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{"amd64"},
+									Values:   []string{arch},
 								},
 								corev1.NodeSelectorRequirement{
 									Key:      "kubernetes.io/os",
@@ -482,6 +497,59 @@ func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent) corev1.PodSpec {
 	}
 }
 
+func prepareEnvVars(instance *dynatracev1alpha1.OneAgent, arch string) []corev1.EnvVar {
+	var token, installerURL, skipCert *corev1.EnvVar
+
+	reserved := map[string]**corev1.EnvVar{
+		"ONEAGENT_INSTALLER_TOKEN":           &token,
+		"ONEAGENT_INSTALLER_SCRIPT_URL":      &installerURL,
+		"ONEAGENT_INSTALLER_SKIP_CERT_CHECK": &skipCert,
+	}
+
+	var envVars []corev1.EnvVar
+
+	for i := range instance.Spec.Env {
+		if p := reserved[instance.Spec.Env[i].Name]; p != nil {
+			*p = &instance.Spec.Env[i]
+			continue
+		}
+		envVars = append(envVars, instance.Spec.Env[i])
+	}
+
+	if token == nil {
+		token = &corev1.EnvVar{
+			Name: "ONEAGENT_INSTALLER_TOKEN",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: instance.Spec.Tokens},
+					Key:                  utils.DynatracePaasToken,
+				},
+			},
+		}
+	}
+
+	if installerURL == nil {
+		urlArch := "x86"
+		if arch == "arm64" {
+			urlArch = "arm64"
+		}
+
+		installerURL = &corev1.EnvVar{
+			Name:  "ONEAGENT_INSTALLER_SCRIPT_URL",
+			Value: fmt.Sprintf("%s/v1/deployment/installer/agent/unix/default/latest?Api-Token=$(ONEAGENT_INSTALLER_TOKEN)&arch=%s&flavor=default", instance.Spec.ApiUrl, urlArch),
+		}
+	}
+
+	if skipCert == nil {
+		skipCert = &corev1.EnvVar{
+			Name:  "ONEAGENT_INSTALLER_SKIP_CERT_CHECK",
+			Value: strconv.FormatBool(instance.Spec.SkipCertCheck),
+		}
+	}
+
+	return append([]corev1.EnvVar{*token, *installerURL, *skipCert}, envVars...)
+}
+
 // deletePods deletes a list of pods
 //
 // Returns an error in the following conditions:
@@ -500,7 +568,7 @@ func (r *ReconcileOneAgent) deletePods(logger logr.Logger, instance *dynatracev1
 		logger.Info("waiting until pod is ready on node", "node", pod.Spec.NodeName)
 
 		// wait for pod on node to get "Running" again
-		if err := r.waitPodReadyState(instance, pod); err != nil {
+		if err := r.waitPodReadyState(pod, *instance.Spec.WaitReadySeconds); err != nil {
 			return err
 		}
 
@@ -510,23 +578,17 @@ func (r *ReconcileOneAgent) deletePods(logger logr.Logger, instance *dynatracev1
 	return nil
 }
 
-func (r *ReconcileOneAgent) waitPodReadyState(instance *dynatracev1alpha1.OneAgent, pod corev1.Pod) error {
+func (r *ReconcileOneAgent) waitPodReadyState(pod corev1.Pod, waitSecs uint16) error {
 	var status error
 
 	listOps := []client.ListOption{
-		client.InNamespace(instance.Namespace),
-		client.MatchingLabels(utils.BuildOneAgentLabels(instance.Name)),
+		client.InNamespace(pod.Namespace),
+		client.MatchingField("spec.nodeName", pod.Spec.NodeName),
 	}
 
-	for splay := uint16(0); splay < *instance.Spec.WaitReadySeconds; splay += splayTimeSeconds {
+	for splay := uint16(0); splay < waitSecs; splay += splayTimeSeconds {
 		time.Sleep(time.Duration(splayTimeSeconds) * time.Second)
 
-		// The actual selector we need is,
-		// "spec.nodeName=<pod.Spec.NodeName>,status.phase=Running,metadata.name!=<pod.Name>"
-		//
-		// However, the client falls back to a cached implementation for .List() after the first attempt, which
-		// is not able to handle our query so the function fails. Because of this, we're getting all the pods and
-		// filtering it ourselves.
 		podList := &corev1.PodList{}
 		status = r.client.List(context.TODO(), podList, listOps...)
 		if status != nil {
@@ -536,8 +598,7 @@ func (r *ReconcileOneAgent) waitPodReadyState(instance *dynatracev1alpha1.OneAge
 		var foundPods []*corev1.Pod
 		for i := range podList.Items {
 			p := &podList.Items[i]
-			if p.Spec.NodeName != pod.Spec.NodeName || p.Status.Phase != corev1.PodRunning ||
-				p.ObjectMeta.Name == pod.Name {
+			if p.Status.Phase != corev1.PodRunning || p.ObjectMeta.Name == pod.Name {
 				continue
 			}
 			foundPods = append(foundPods, p)

@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -50,6 +51,7 @@ func TestReconcileOneAgent_ReconcileOnEmptyEnvironmentAndDNSPolicy(t *testing.T)
 			Spec:       oaSpec,
 		},
 		NewSecret(oaName, namespace, map[string]string{utils.DynatracePaasToken: "42", utils.DynatraceApiToken: "84"}),
+		NewNode(),
 	)
 
 	dtClient := &dtclient.MockDynatraceClient{}
@@ -68,13 +70,16 @@ func TestReconcileOneAgent_ReconcileOnEmptyEnvironmentAndDNSPolicy(t *testing.T)
 	_, err := reconciler.Reconcile(reconcile.Request{NamespacedName: types.NamespacedName{Name: oaName, Namespace: namespace}})
 	assert.NoError(t, err)
 
-	dsActual := &appsv1.DaemonSet{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: oaName, Namespace: namespace}, dsActual)
+	var dsList appsv1.DaemonSetList
+	err = fakeClient.List(context.TODO(), &dsList, client.InNamespace(namespace))
 	assert.NoError(t, err, "failed to get DaemonSet")
-	assert.Equal(t, namespace, dsActual.Namespace, "wrong namespace")
-	assert.Equal(t, oaName, dsActual.GetObjectMeta().GetName(), "wrong name")
-	assert.Equal(t, corev1.DNSClusterFirstWithHostNet, dsActual.Spec.Template.Spec.DNSPolicy, "wrong policy")
-	mock.AssertExpectationsForObjects(t, dtClient)
+	if assert.Equal(t, 1, len(dsList.Items), "incorrect number of DaemonSets") {
+		dsActual := &dsList.Items[0]
+		assert.Equal(t, namespace, dsActual.Namespace, "wrong namespace")
+		assert.Equal(t, oaName+"-", dsActual.GetObjectMeta().GetGenerateName(), "wrong name")
+		assert.Equal(t, corev1.DNSClusterFirstWithHostNet, dsActual.Spec.Template.Spec.DNSPolicy, "wrong policy")
+		mock.AssertExpectationsForObjects(t, dtClient)
+	}
 }
 
 func TestReconcileDynatraceClient_TokenValidation(t *testing.T) {
@@ -202,7 +207,7 @@ func TestReconcileDynatraceClient_ProbeRequests(t *testing.T) {
 	base.SetCondition(dynatracev1alpha1.APITokenConditionType, corev1.ConditionTrue, dynatracev1alpha1.ReasonTokenReady, "Ready")
 	base.SetCondition(dynatracev1alpha1.PaaSTokenConditionType, corev1.ConditionTrue, dynatracev1alpha1.ReasonTokenReady, "Ready")
 
-	c := fake.NewFakeClient(NewSecret(oaName, namespace, map[string]string{utils.DynatracePaasToken: "42", utils.DynatraceApiToken: "84"}))
+	c := fake.NewFakeClient(NewSecret(oaName, namespace, map[string]string{utils.DynatracePaasToken: "42", utils.DynatraceApiToken: "84"}), NewNode())
 
 	t.Run("No request if last probe was recent", func(t *testing.T) {
 		lastAPIProbe := metav1.NewTime(now.Add(-3 * time.Minute))
@@ -285,7 +290,7 @@ func TestReconcile_PhaseSetCorrectly(t *testing.T) {
 	})
 
 	// arrange
-	c := fake.NewFakeClient(NewSecret(oaName, namespace, map[string]string{utils.DynatracePaasToken: "42", utils.DynatraceApiToken: "84"}))
+	c := fake.NewFakeClient(NewSecret(oaName, namespace, map[string]string{utils.DynatracePaasToken: "42", utils.DynatraceApiToken: "84"}), NewNode())
 	dtcMock := &dtclient.MockDynatraceClient{}
 	version := "1.187"
 	dtcMock.On("GetLatestAgentVersion", dtclient.OsUnix, dtclient.InstallerTypeDefault).Return(version, nil)
@@ -322,8 +327,8 @@ func TestReconcile_PhaseSetCorrectly(t *testing.T) {
 		updateCR, err := reconciler.reconcileRollout(logger, oa, dtcMock)
 
 		// assert
-		assert.True(t, updateCR)
 		assert.Equal(t, nil, err)
+		assert.False(t, updateCR)
 		assert.Equal(t, dynatracev1alpha1.OneAgentPhaseType(""), oa.Status.Phase)
 	})
 
@@ -359,4 +364,8 @@ func NewSecret(name, namespace string, kv map[string]string) *corev1.Secret {
 		data[k] = []byte(v)
 	}
 	return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}, Data: data}
+}
+
+func NewNode() *corev1.Node {
+	return &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{"kubernetes.io/arch": "amd64"}}}
 }
