@@ -144,10 +144,7 @@ func (r *ReconcileOneAgent) Reconcile(request reconcile.Request) (reconcile.Resu
 		updateCR := instance.SetPhaseOnError(err)
 		if updateCR {
 			if errClient := r.updateCR(instance); errClient != nil {
-				if errClient != nil {
-					return reconcile.Result{}, fmt.Errorf("failed to update CR after failure, original, %s, then: %w", err, errClient)
-				}
-				return reconcile.Result{}, fmt.Errorf("failed to update CR: %w", err)
+				return reconcile.Result{}, fmt.Errorf("failed to update CR after failure, original, %s, then: %w", err, errClient)
 			}
 		}
 		return reconcile.Result{}, err
@@ -210,9 +207,8 @@ func (r *ReconcileOneAgent) Reconcile(request reconcile.Request) (reconcile.Resu
 	updateCR, err = r.reconcileVersion(logger, instance, dtc)
 	if instance.SetPhaseOnError(err) || updateCR {
 		logger.Info("updating custom resource", "cause", "version change")
-		errClient := r.updateCR(instance)
-		if errClient != nil {
-			return reconcile.Result{}, errClient
+		if errClient := r.updateCR(instance); errClient != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to update CR after failure, original, %s, then: %w", err, errClient)
 		}
 		if err != nil {
 			return reconcile.Result{}, err
@@ -237,8 +233,6 @@ func (r *ReconcileOneAgent) Reconcile(request reconcile.Request) (reconcile.Resu
 }
 
 func (r *ReconcileOneAgent) reconcileRollout(logger logr.Logger, instance *dynatracev1alpha1.OneAgent, dtc dtclient.Client) (bool, error) {
-	updateCR := false
-
 	var nodes corev1.NodeList
 	if err := r.client.List(context.TODO(), &nodes, client.MatchingLabels(instance.Spec.NodeSelector)); err != nil {
 		return false, err
@@ -289,15 +283,15 @@ func (r *ReconcileOneAgent) reconcileRollout(logger logr.Logger, instance *dynat
 		desired, err := dtc.GetLatestAgentVersion(dtclient.OsUnix, dtclient.InstallerTypeDefault)
 		if err != nil {
 			logger.Error(err, "failed to get desired version")
-			return updateCR, nil
+			return false, nil
 		}
 
 		instance.Status.Version = desired
 		instance.SetPhase(dynatracev1alpha1.Deploying)
-		updateCR = true
+		return true, nil
 	}
 
-	return updateCR, nil
+	return false, nil
 }
 
 func (r *ReconcileOneAgent) determineOneAgentPhase(instance *dynatracev1alpha1.OneAgent) (bool, error) {

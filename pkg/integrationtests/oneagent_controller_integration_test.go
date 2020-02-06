@@ -30,7 +30,7 @@ func TestReconcileOneAgent_ReconcileOnEmptyEnvironment(t *testing.T) {
 	_, err = e.Reconciler.Reconcile(newReconciliationRequest(oaName))
 	assert.NoError(t, err, "error reconciling")
 
-	// Check if deamonset has been created and has correct namespace and name.
+	// Check if DaemonSet has been created and has correct namespace and name.
 	var dsList appsv1.DaemonSetList
 	err = e.Client.List(context.TODO(), &dsList, client.InNamespace(DefaultTestNamespace))
 	assert.NoError(t, err, "failed to get DaemonSet")

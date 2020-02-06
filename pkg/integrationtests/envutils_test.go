@@ -122,6 +122,11 @@ func newTestEnvironment() (*ControllerTestEnvironment, error) {
 		return nil, err
 	}
 
+	if err = kubernetesClient.Create(context.TODO(), buildNode()); err != nil {
+		kubernetesAPIServer.Stop()
+		return nil, err
+	}
+
 	communicationHosts := []string{
 		"https://endpoint1.test.com/communication",
 		"https://endpoint2.test.com/communication",
@@ -194,6 +199,15 @@ func buildDynatraceClientSecret() *corev1.Secret {
 		Data: map[string][]byte{
 			"paasToken": []byte("42"),
 			"apiToken":  []byte("43"),
+		},
+	}
+}
+
+func buildNode() *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "node",
+			Labels: map[string]string{"kubernetes.io/arch": "amd64"},
 		},
 	}
 }
