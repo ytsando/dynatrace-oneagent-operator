@@ -4,13 +4,14 @@ package integrationtests
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	dynatracev1alpha1 "github.com/Dynatrace/dynatrace-oneagent-operator/pkg/apis/dynatrace/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestReconcileOneAgent_ReconcileOnEmptyEnvironment(t *testing.T) {
@@ -30,12 +31,15 @@ func TestReconcileOneAgent_ReconcileOnEmptyEnvironment(t *testing.T) {
 	assert.NoError(t, err, "error reconciling")
 
 	// Check if deamonset has been created and has correct namespace and name.
-	dsActual := &appsv1.DaemonSet{}
+	var dsList appsv1.DaemonSetList
+	err = e.Client.List(context.TODO(), &dsList, client.InNamespace(DefaultTestNamespace))
+	assert.NoError(t, err, "failed to get DaemonSet")
+	if assert.Equal(t, 1, len(dsList.Items), "incorrect number of DaemonSets") {
+		dsActual := &dsList.Items[0]
+		assert.Equal(t, DefaultTestNamespace, dsActual.Namespace, "wrong namespace")
+		name := dsActual.GetObjectMeta().GetName()
+		assert.Truef(t, strings.HasPrefix(name, oaName+"-"), "wrong name: %s", name)
+		assert.Equal(t, corev1.DNSClusterFirst, dsActual.Spec.Template.Spec.DNSPolicy, "DNS policy should ClusterFirst by default")
+	}
 
-	err = e.Client.Get(context.TODO(), types.NamespacedName{Name: oaName, Namespace: DefaultTestNamespace}, dsActual)
-	assert.NoError(t, err, "failed to get deamonset")
-
-	assert.Equal(t, DefaultTestNamespace, dsActual.Namespace, "wrong namespace")
-	assert.Equal(t, oaName, dsActual.GetObjectMeta().GetName(), "wrong name")
-	assert.Equal(t, corev1.DNSClusterFirst, dsActual.Spec.Template.Spec.DNSPolicy, "DNS policy should ClusterFirst by default")
 }
