@@ -22,7 +22,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -145,7 +144,7 @@ func (r *ReconcileOneAgent) Reconcile(request reconcile.Request) (reconcile.Resu
 		updateCR := instance.SetPhaseOnError(err)
 		if updateCR {
 			if errClient := r.updateCR(instance); errClient != nil {
-				if err != nil {
+				if errClient != nil {
 					return reconcile.Result{}, fmt.Errorf("failed to update CR after failure, original, %s, then: %w", err, errClient)
 				}
 				return reconcile.Result{}, fmt.Errorf("failed to update CR: %w", err)
@@ -277,6 +276,7 @@ func (r *ReconcileOneAgent) reconcileRollout(logger logr.Logger, instance *dynat
 			return false, err
 		}
 
+		dsDesired.Name = dsFound.Items[0].Name
 		if hasSpecChanged(&dsFound.Items[0].Spec, &dsDesired.Spec) {
 			logger.Info("updating existing daemonset")
 			if err := r.client.Update(context.TODO(), dsDesired); err != nil {
@@ -302,10 +302,10 @@ func (r *ReconcileOneAgent) reconcileRollout(logger logr.Logger, instance *dynat
 
 func (r *ReconcileOneAgent) determineOneAgentPhase(instance *dynatracev1alpha1.OneAgent) (bool, error) {
 	var phaseChanged bool
-	dsActual := &appsv1.DaemonSet{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, dsActual)
 
-	if k8serrors.IsNotFound(err) {
+	var dsList appsv1.DaemonSetList
+	err := r.client.List(context.TODO(), &dsList, client.InNamespace(instance.Namespace))
+	if err == nil && len(dsList.Items) == 0 {
 		return false, nil
 	}
 
@@ -315,7 +315,12 @@ func (r *ReconcileOneAgent) determineOneAgentPhase(instance *dynatracev1alpha1.O
 		return phaseChanged, err
 	}
 
-	if dsActual.Status.NumberReady == dsActual.Status.CurrentNumberScheduled {
+	allRunning := false
+	for i := range dsList.Items {
+		allRunning = allRunning && dsList.Items[i].Status.NumberReady == dsList.Items[i].Status.CurrentNumberScheduled
+	}
+
+	if allRunning {
 		phaseChanged = instance.Status.Phase != dynatracev1alpha1.Running
 		instance.Status.Phase = dynatracev1alpha1.Running
 	} else {
