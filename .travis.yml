@@ -9,12 +9,6 @@ notifications:
   email:
     on_success: never
 
-cache:
-  directories:
-    - /usr/local/kubebuilder/bin
-    - $HOME/.cache/go-build
-    - $HOME/gopath/pkg/mod
-
 stages:
   - preparation
   - build
@@ -30,13 +24,14 @@ env:
     - DOCKER_CLI_EXPERIMENTAL=enabled
 
 ######################### DEFINING BASE STEPS #########################
+
 x_base_steps:
   - &build
     script: ./build/build.sh
     cache:
-        directories:
-          - $HOME/.cache/go-build
-          - $HOME/gopath/pkg/mod
+      directories:
+        - $HOME/.cache/go-build
+        - $HOME/gopath/pkg/mod
 
   - &deploy
     script: ./build/deploy.sh
@@ -60,14 +55,16 @@ jobs:
       script: ./build/test.sh
       cache:
         directories:
+          - $HOME/.cache/go-build
+          - $HOME/gopath/pkg/mod
           - /usr/local/kubebuilder/bin
 
     - stage: preparation
       name: Verify OLM manifest
       language: python
       python: "3.7"
+      cache: pip
       script:
-        - pip3 install operator-courier==2.1.7
         - operator-courier verify ./deploy/olm/kubernetes
         - operator-courier verify ./deploy/olm/openshift
 
@@ -148,7 +145,7 @@ jobs:
           - ws_amd
           - dockerconfig
 
-      ######################### ARM #########################
+    ######################### ARM #########################
 
     - <<: *deploy
       stage: deploy
@@ -183,7 +180,7 @@ jobs:
           - ws_arm
           - dockerconfig
 
-      ######################### Create Docker manifest #########################
+    ######################### Create Docker manifest #########################
 
     - <<: *create_manifest
       stage: manifest
@@ -199,7 +196,7 @@ jobs:
         - IMAGE=$OAO_IMAGE_DOCKER_HUB
         - IMAGE=$OAO_IMAGE_RHCC
 
-      ######################### Publish release artefacts #########################
+    ######################### Publish release artefacts #########################
 
     - stage: release
       name: publish_release
@@ -213,4 +210,3 @@ jobs:
       deploy:
         provider: releases
         file: artefacts/*
-
