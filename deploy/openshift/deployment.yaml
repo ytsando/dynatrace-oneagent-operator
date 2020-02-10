@@ -51,6 +51,7 @@ spec:
                     operator: In
                     values:
                       - amd64
+                      - arm64
                   - key: beta.kubernetes.io/os
                     operator: In
                     values:
@@ -60,6 +61,7 @@ spec:
                     operator: In
                     values:
                       - amd64
+                      - arm64
                   - key: kubernetes.io/os
                     operator: In
                     values:
