@@ -14,6 +14,7 @@ import (
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/controller/istio"
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/controller/utils"
 	"github.com/Dynatrace/dynatrace-oneagent-operator/pkg/dtclient"
+	"github.com/Dynatrace/dynatrace-oneagent-operator/version"
 
 	"github.com/go-logr/logr"
 
@@ -378,6 +379,8 @@ func newPodSpecForCR(instance *dynatracev1alpha1.OneAgent) corev1.PodSpec {
 	if instance.Spec.Proxy != nil && (instance.Spec.Proxy.ValueFrom != "" || instance.Spec.Proxy.Value != "") {
 		args = append(instance.Spec.Args, "--set-proxy=$(https_proxy)")
 	}
+
+	args = append(args, "--set-host-property=OperatorVersion="+version.Version)
 
 	// K8s 1.18+ is expected to drop the "beta.kubernetes.io" labels in favor of "kubernetes.io" which was added on K8s 1.14.
 	// To support both older and newer K8s versions we use node affinity.
