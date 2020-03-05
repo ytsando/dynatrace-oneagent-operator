@@ -25,6 +25,7 @@
 * Update to Operator SDK 0.15.1 ([#200](https://github.com/Dynatrace/dynatrace-oneagent-operator/pull/200))
 * Initial work to ease release automation ([#198](https://github.com/Dynatrace/dynatrace-oneagent-operator/pull/198))
 * Added automatic creation of CSV file for OLM ([#210](https://github.com/Dynatrace/dynatrace-oneagent-operator/pull/210))
+* Include Operator version as a custom property for hosts ([#212](https://github.com/Dynatrace/dynatrace-oneagent-operator/pull/212))
 
 ## v0.6
 
