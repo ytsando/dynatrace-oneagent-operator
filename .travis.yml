@@ -82,16 +82,16 @@ jobs:
             - LICENSE
             - build
 
-    - <<: *build
-      stage: build
-      name: Build for ARM
-      arch: arm64
-      workspaces:
-        create:
-          name: ws_arm
-          paths:
-            - LICENSE
-            - build
+    # - <<: *build
+    #   stage: build
+    #   name: Build for ARM
+    #   arch: arm64
+    #   workspaces:
+    #     create:
+    #       name: ws_arm
+    #       paths:
+    #         - LICENSE
+    #         - build
 
     ######################### AMD #########################
 
