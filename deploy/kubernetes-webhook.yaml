@@ -17,7 +17,6 @@ rules:
       - ""
     resources:
       - services
-      - secrets
       - configmaps
     verbs:
       - get
@@ -168,6 +167,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: server-port
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
           ports:
             - name: server-port
               containerPort: 8443

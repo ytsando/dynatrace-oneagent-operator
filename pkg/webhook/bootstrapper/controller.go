@@ -162,7 +162,7 @@ func (r *ReconcileWebhook) reconcileService(ctx context.Context, log logr.Logger
 func (r *ReconcileWebhook) reconcileCerts(ctx context.Context, log logr.Logger) ([]byte, error) {
 	log.Info("Reconciling certificates...")
 
-	if data, err := ioutil.ReadFile(certsDir + "/root.crt"); err == nil {
+	if data, err := ioutil.ReadFile(certsDir + "/tls.crt"); err == nil {
 		return data, nil
 	}
 
