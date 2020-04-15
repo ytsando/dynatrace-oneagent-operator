@@ -24,15 +24,17 @@ From here on Dynatrace OneAgent Operator controls the lifecycle and keeps track 
 
 Depending of the version of the Dynatrace OneAgent Operator, it supports the following platforms:
 
-| Dynatrace OneAgent Operator version | Kubernetes | OpenShift Container Platform |
-| ----------------------------------- | ---------- | ---------------------------- |
-| master                              | 1.14+      | 3.11+                        |
-| v0.7.0                              | 1.14+      | 3.11+                        |
-| v0.6.0                              | 1.11+      | 3.11+                        |
-| v0.5.4                              | 1.11+      | 3.11+                        |
-| v0.4.2                              | 1.11+      | 3.11+                        |
-| v0.3.1                              | 1.11-1.15  | 3.11+                        |
-| v0.2.1                              | 1.9-1.15   | 3.9+                         |
+| Dynatrace OneAgent Operator version | Kubernetes | OpenShift Container Platform           |
+| ----------------------------------- | ---------- | -------------------------------------- |
+| master                              | 1.14+      | 3.11+[<sup>[1]</sup>](#openshift-3.11) |
+| v0.7.0                              | 1.14+      | 3.11+[<sup>[1]</sup>](#openshift-3.11) |
+| v0.6.0                              | 1.11+      | 3.11+                                  |
+| v0.5.4                              | 1.11+      | 3.11+                                  |
+| v0.4.2                              | 1.11+      | 3.11+                                  |
+| v0.3.1                              | 1.11-1.15  | 3.11+                                  |
+| v0.2.1                              | 1.9-1.15   | 3.9+                                   |
+
+Note: OCP 3.11 is supported, but however non-recent versions 
 
 Help topic _How do I deploy Dynatrace OneAgent as a Docker container?_ lists compatible image and OneAgent versions in its [requirements section](https://www.dynatrace.com/support/help/infrastructure/containers/how-do-i-deploy-dynatrace-oneagent-as-docker-container/#requirements).
 
@@ -73,6 +75,9 @@ $ oc apply -f https://github.com/Dynatrace/dynatrace-oneagent-operator/releases/
 $ oc -n dynatrace logs -f deployment/dynatrace-oneagent-operator
 ```
 
+##### OpenShift 3.11
+
+If using Operator v0.7.0 or greater and OCP 3.11, versions before 3.11.188 are suffering of a bug when validating certain CRD objects, if you have an older OCP 3.11 version then you can add `--validate=false` to the `oc apply` command to skip validation. OCP 4.x versions don't have this issue.
 
 #### Create `OneAgent` custom resource for OneAgent rollout
 The rollout of Dynatrace OneAgent is governed by a custom resource of type `OneAgent`:
@@ -182,10 +187,6 @@ $ kubectl delete -f https://github.com/Dynatrace/dynatrace-oneagent-operator/rel
 $ oc delete -n dynatrace oneagent --all
 $ oc delete -f https://github.com/Dynatrace/dynatrace-oneagent-operator/releases/latest/download/openshift.yaml
 ```
-
-## Known Limitation
-The `enableIstio` feature requires to restart the operator if Istio was deployed after deployment of the operator in case istio is installed after deploying the operator.
-Background: This happens because the cache maintained by controller-runtime's Kubernetes Client is not dynamic. The bug for same is reported here https://github.com/kubernetes-sigs/controller-runtime/issues/321 and the fix for same is currently a work in progress https://github.com/kubernetes-sigs/controller-runtime/pull/554 .
 
 ## Hacking
 
