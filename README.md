@@ -34,8 +34,6 @@ Depending of the version of the Dynatrace OneAgent Operator, it supports the fol
 | v0.3.1                              | 1.11-1.15  | 3.11+                                  |
 | v0.2.1                              | 1.9-1.15   | 3.9+                                   |
 
-Note: OCP 3.11 is supported, but however non-recent versions 
-
 Help topic _How do I deploy Dynatrace OneAgent as a Docker container?_ lists compatible image and OneAgent versions in its [requirements section](https://www.dynatrace.com/support/help/infrastructure/containers/how-do-i-deploy-dynatrace-oneagent-as-docker-container/#requirements).
 
 
