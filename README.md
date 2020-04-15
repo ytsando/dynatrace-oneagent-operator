@@ -26,8 +26,8 @@ Depending of the version of the Dynatrace OneAgent Operator, it supports the fol
 
 | Dynatrace OneAgent Operator version | Kubernetes | OpenShift Container Platform           |
 | ----------------------------------- | ---------- | -------------------------------------- |
-| master                              | 1.14+      | 3.11+[<sup>[1]</sup>](#openshift-311) |
-| v0.7.0                              | 1.14+      | 3.11+[<sup>[1]</sup>](#openshift-311) |
+| master                              | 1.14+      | 3.11[<sup>[1]</sup>](#openshift-311), 4.1+ |
+| v0.7.0                              | 1.14+      | 3.11[<sup>[1]</sup>](#openshift-311), 4.1+ |
 | v0.6.0                              | 1.11+      | 3.11+                                  |
 | v0.5.4                              | 1.11+      | 3.11+                                  |
 | v0.4.2                              | 1.11+      | 3.11+                                  |
@@ -77,7 +77,7 @@ $ oc -n dynatrace logs -f deployment/dynatrace-oneagent-operator
 
 ##### OpenShift 3.11
 
-If using Operator v0.7.0 or greater and OCP 3.11, versions before 3.11.188 are suffering of a bug when validating certain CRD objects, if you have an older OCP 3.11 version then you can add `--validate=false` to the `oc apply` command to skip validation. OCP 4.x versions don't have this issue.
+If using Operator v0.7.0 or greater and OCP 3.11, versions before 3.11.188 are suffering of [a bug](https://github.com/openshift/origin/pull/24540) when validating certain CRD objects. If you have an older OCP 3.11 version then you can add `--validate=false` to the `oc apply -f` command to skip validation.
 
 #### Create `OneAgent` custom resource for OneAgent rollout
 The rollout of Dynatrace OneAgent is governed by a custom resource of type `OneAgent`:
